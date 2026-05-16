@@ -35,7 +35,7 @@ export default function RegistroHorario() {
         const { latitude, longitude } = position.coords;
         
         try {
-          const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/paradas/todas`);
+          const res = await fetch('http://localhost:8000/api/paradas/todas');
           const allParadas = await res.json();
           
           let closestStop = null;
@@ -82,14 +82,14 @@ export default function RegistroHorario() {
   };
 
   useEffect(() => {
-    fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/rutas`)
+    fetch('http://localhost:8000/api/rutas')
       .then(res => res.json())
       .then(data => setRutas(data));
   }, []);
 
   useEffect(() => {
     if (selectedRuta) {
-      fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/rutas/${selectedRuta}/paradas`)
+      fetch(`http://localhost:8000/api/rutas/${selectedRuta}/paradas`)
         .then(res => res.json())
         .then(data => setParadas(data));
     } else {
@@ -101,7 +101,7 @@ export default function RegistroHorario() {
   useEffect(() => {
     if (selectedParada) {
       setLoading(true);
-      fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/paradas/${selectedParada}/proximos`)
+      fetch(`http://localhost:8000/api/paradas/${selectedParada}/proximos`)
         .then(res => res.json())
         .then(data => {
           setEstimation(data);
@@ -115,7 +115,7 @@ export default function RegistroHorario() {
     if (!selectedParada || !user) return;
     setSubmitting(true);
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/horarios`, {
+      const response = await fetch('http://localhost:8000/api/horarios', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -128,7 +128,7 @@ export default function RegistroHorario() {
       if (response.ok) {
         setShowToast(true);
         setTimeout(() => setShowToast(false), 3000);
-        const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/paradas/${selectedParada}/proximos`);
+        const res = await fetch(`http://localhost:8000/api/paradas/${selectedParada}/proximos`);
         const data = await res.json();
         setEstimation(data);
         setHistory(data.recent_records || []);

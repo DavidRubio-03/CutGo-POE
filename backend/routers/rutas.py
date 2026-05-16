@@ -2,9 +2,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
 
-from ..database import get_db
-from ..models import Ruta, Parada
-from ..schemas import RutaResponse, ParadaResponse
+from backend.database import get_db
+from backend.models import Ruta, Parada
+from backend.schemas import RutaResponse, ParadaResponse
 
 router = APIRouter(prefix="/api/rutas", tags=["rutas"])
 

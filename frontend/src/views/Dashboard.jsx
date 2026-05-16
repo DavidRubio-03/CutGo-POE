@@ -95,10 +95,10 @@ export default function Dashboard() {
     const fetchData = async () => {
       try {
         const [resRes, incRes, freRes, calRes] = await Promise.all([
-          fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/estadisticas/resumen`),
-          fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/estadisticas/incidentes-por-ruta`),
-          fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/estadisticas/frecuencia`),
-          fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/estadisticas/calificaciones`)
+          fetch('http://localhost:8000/api/estadisticas/resumen'),
+          fetch('http://localhost:8000/api/estadisticas/incidentes-por-ruta'),
+          fetch('http://localhost:8000/api/estadisticas/frecuencia'),
+          fetch('http://localhost:8000/api/estadisticas/calificaciones')
         ]);
 
         if (resRes.ok) setResumen(await resRes.json());

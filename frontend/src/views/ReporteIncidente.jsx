@@ -31,10 +31,10 @@ export default function ReporteIncidente() {
   useEffect(() => {
     const loadData = async () => {
       try {
-        const rutasRes = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/rutas`);
+        const rutasRes = await fetch('http://localhost:8000/api/rutas');
         const rutas = await rutasRes.json();
         const stopsPromises = rutas.map(async (ruta) => {
-          const stopsRes = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/rutas/${ruta.id_ruta}/paradas`);
+          const stopsRes = await fetch(`http://localhost:8000/api/rutas/${ruta.id_ruta}/paradas`);
           const stops = await stopsRes.json();
           return stops.map(s => ({ ...s, nombre_ruta: ruta.nombre_ruta }));
         });
@@ -63,7 +63,7 @@ export default function ReporteIncidente() {
   const handleFinalSubmit = async () => {
     setIsSubmitting(true);
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/incidentes/`, {
+      const response = await fetch('http://localhost:8000/api/incidentes/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

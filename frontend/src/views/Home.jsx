@@ -7,7 +7,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { haversine } from '../utils/geo';
 
-const API = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API = 'http://localhost:8000';
 
 // ─── Skeleton bar ────────────────────────────────────────────
 const Skel = ({ w = '60px', h = '24px' }) => (

@@ -58,7 +58,7 @@ export default function MapaRutas() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/rutas`)
+    axios.get('http://localhost:8000/api/rutas')
       .then(res => {
         const sanitized = res.data.map(r => ({
           ...r,
@@ -78,14 +78,14 @@ export default function MapaRutas() {
     setIncidentesMapa({});
 
     try {
-      const paradasRes = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/rutas/${ruta.id_ruta}/paradas`);
+      const paradasRes = await axios.get(`http://localhost:8000/api/rutas/${ruta.id_ruta}/paradas`);
       const sanitizedParadas = paradasRes.data.map(p => ({
         ...p,
         nombre_parada: fixEncoding(p.nombre_parada)
       }));
       setParadas(sanitizedParadas);
 
-      const incidentesRes = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/incidentes/mapa`);
+      const incidentesRes = await axios.get('http://localhost:8000/api/incidentes/mapa');
       const incMap = {};
       if (Array.isArray(incidentesRes.data)) {
         incidentesRes.data.forEach(inc => {
@@ -102,7 +102,7 @@ export default function MapaRutas() {
 
   const fetchProximoCamion = async (idParada) => {
     try {
-      const res = await axios.get(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/paradas/${idParada}/proximos`);
+      const res = await axios.get(`http://localhost:8000/api/paradas/${idParada}/proximos`);
       setProximosCamiones(prev => ({
         ...prev,
         [idParada]: Math.round(res.data.proximo_estimado_min) || '?'

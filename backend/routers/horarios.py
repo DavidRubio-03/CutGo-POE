@@ -3,9 +3,9 @@ from sqlalchemy.orm import Session
 from sqlalchemy import text
 from datetime import datetime, timedelta
 
-from ..database import get_db
-from ..models import RegistroHorario, Parada
-from ..schemas import HorarioCreate, HorarioResponse, ProximoResponse
+from backend.database import get_db
+from backend.models import RegistroHorario, Parada
+from backend.schemas import HorarioCreate, HorarioResponse, ProximoResponse
 
 router = APIRouter(prefix="/api", tags=["horarios"])
 
