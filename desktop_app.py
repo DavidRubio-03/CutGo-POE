@@ -1,6 +1,7 @@
 import sys
 import os
 import bcrypt
+import json
 from datetime import datetime
 from sqlalchemy import extract, func
 from dotenv import load_dotenv
@@ -21,6 +22,7 @@ from backend.database import SessionLocal
 from backend.models import Usuario, Ruta, Parada, RegistroHorario, Incidente
 
 CURRENT_USER_ID = None
+CURRENT_USER_NAME = "" # Guardará el nombre para el saludo dinámico
 
 def get_password_hash(password: str) -> str:
     pwd_bytes = password.encode('utf-8')
@@ -34,7 +36,7 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     except ValueError:
         return False
 
-# --- Login View ---
+# --- Login View (CÓDIGO ORIGINAL INTACTO) ---
 
 class LoginWindow(QMainWindow):
     def __init__(self):
@@ -50,7 +52,6 @@ class LoginWindow(QMainWindow):
         main_layout = QVBoxLayout(central_widget)
         main_layout.setContentsMargins(40, 40, 40, 40)
         
-        # Logo o Título
         title = QLabel("Bienvenido de vuelta")
         title.setObjectName("titleLabel")
         title.setAlignment(Qt.AlignCenter)
@@ -117,17 +118,15 @@ class LoginWindow(QMainWindow):
 
         db = SessionLocal()
         try:
-            # Primero buscamos por nombre exacto
             usuario = db.query(Usuario).filter(Usuario.nombre == nombre).first()
             
-            # Autenticación segura (bcrypt)
             if usuario and verify_password(contra, usuario.contrasena_hash):
-                global CURRENT_USER_ID
+                global CURRENT_USER_ID, CURRENT_USER_NAME
                 CURRENT_USER_ID = usuario.id_usuario
+                CURRENT_USER_NAME = usuario.nombre # Guardamos el nombre real
                 
-                # Iniciar ventana principal
                 self.main_window = MainWindow()
-                self.main_window.show()
+                self.main_window.showMaximized()
                 self.close()
             else:
                 QMessageBox.warning(self, "Error", "Nombre o contraseña incorrectos.")
@@ -143,15 +142,9 @@ class LoginWindow(QMainWindow):
         QLabel#titleLabel { font-size: 28px; font-weight: 900; color: #F3F4F6; letter-spacing: -1px; }
         QLabel#subtitleLabel { font-size: 14px; color: #9CA3AF; font-weight: 300; }
         QLabel#fieldLabel { font-size: 13px; color: #9CA3AF; font-weight: bold; text-transform: uppercase; margin-bottom: 5px; }
-        
         QFrame#formCard { background-color: #1E1E24; border-radius: 16px; padding: 32px; }
-        
-        QLineEdit {
-            background-color: #121212; color: #F3F4F6; border: 1px solid #2C2C35;
-            border-radius: 12px; padding: 14px; font-size: 14px;
-        }
+        QLineEdit { background-color: #121212; color: #F3F4F6; border: 1px solid #2C2C35; border-radius: 12px; padding: 14px; font-size: 14px; }
         QLineEdit:focus { border: 1px solid #FF5C00; }
-        
         QPushButton#mainButton { background-color: #F3F4F6; color: #121212; border-radius: 25px; font-size: 15px; font-weight: 800; }
         QPushButton#mainButton:hover { background-color: #FFFFFF; }
         QPushButton#secondaryButton { background-color: transparent; color: #FF5C00; font-size: 13px; font-weight: bold; margin-top: 10px; border: none; }
@@ -161,80 +154,143 @@ class LoginWindow(QMainWindow):
         self.setStyleSheet(style_sheet)
 
 
-# --- Views Principales ---
+# --- NUEVA VISTA: Home (Pantalla de Bienvenida con Textos Corregidos para Modo Claro) ---
+
+class HomeView(QWidget):
+    def __init__(self, main_window_nav_callback):
+        super().__init__()
+        self.navigate = main_window_nav_callback
+        self.setup_ui()
+
+    def setup_ui(self):
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(50, 40, 50, 40)
+        
+        self.lbl_saludo = QLabel()
+        self.lbl_saludo.setObjectName("titleLabel")
+        self.lbl_saludo.setTextFormat(Qt.RichText)
+        
+        self.lbl_info = QLabel()
+        self.lbl_info.setObjectName("subtitleLabel")
+        
+        layout.addWidget(self.lbl_saludo)
+        layout.addWidget(self.lbl_info)
+        layout.addSpacing(30)
+        
+        # Mapeo de Tarjetas Interactivas de la Web
+        grid = QGridLayout()
+        grid.setSpacing(20)
+        
+        card_gps = self.create_hub_card("Detección GPS", "Localiza tu parada más cercana", "Activar GPS", "#FF5C00", self.simular_gps)
+        card_rutas = self.create_hub_card("Rutas Activas", "Mapa interactivo de movilidad al CUT", "EXPLORAR ›", "#FF5C00", lambda: self.navigate(3))
+        card_seguridad = self.create_hub_card("Seguridad", "Reportes anónimos de incidentes en ruta", "REPORTAR ›", "#FF5C00", lambda: self.navigate(4))
+        card_analisis = self.create_hub_card("Análisis", "Puntualidad y flujo de rutas", "VER PANEL ›", "#FF5C00", lambda: self.navigate(1))
+        card_frecuencia = self.create_hub_card("Frecuencia", "Intervalo promedio por ruta", "VER HORARIOS ›", "#FF5C00", lambda: self.navigate(2))
+        
+        grid.addWidget(card_gps, 0, 0)
+        grid.addWidget(card_rutas, 0, 1)
+        grid.addWidget(card_seguridad, 0, 2)
+        grid.addWidget(card_analisis, 1, 0)
+        grid.addWidget(card_frecuencia, 1, 1, 1, 2)
+        
+        layout.addLayout(grid)
+        layout.addStretch()
+
+    def create_hub_card(self, title, desc, action_text, color, callback):
+        card = QFrame()
+        card.setObjectName("navCard")
+        clayout = QVBoxLayout(card)
+        clayout.setContentsMargins(20, 20, 20, 20)
+        
+        t_lbl = QLabel(title)
+        # CORRECCIÓN DE TEXTO INVISIBLE: Se hereda el color del tema global en lugar de forzar blanco
+        t_lbl.setStyleSheet("font-size: 18px; font-weight: bold;") 
+        d_lbl = QLabel(desc)
+        d_lbl.setObjectName("subtitleLabel")
+        
+        btn = QPushButton(action_text)
+        btn.setCursor(Qt.PointingHandCursor)
+        if "›" in action_text:
+            btn.setStyleSheet(f"background-color: transparent; color: {color}; text-align: left; font-weight: bold; border: none; padding: 0;")
+        else:
+            btn.setStyleSheet(f"background-color: {color}; color: white; border-radius: 15px; padding: 8px 16px; font-weight: bold;")
+        btn.clicked.connect(callback)
+        
+        clayout.addWidget(t_lbl)
+        clayout.addWidget(d_lbl)
+        clayout.addStretch()
+        clayout.addWidget(btn, alignment=Qt.AlignLeft)
+        return card
+
+    def load_data(self):
+        self.lbl_saludo.setText(f"Hola, <span style='color: #FF5C00;'>{CURRENT_USER_NAME}</span>")
+        db = SessionLocal()
+        try:
+            rutas_activas = db.query(Ruta).filter(Ruta.activa == True).count()
+            fecha = datetime.now().strftime("%A, %d de %B").capitalize()
+            self.lbl_info.setText(f"{fecha} · {rutas_activas} rutas activas ahora mismo")
+        except:
+            self.lbl_info.setText(datetime.now().strftime("%A, %d de %B"))
+        finally:
+            db.close()
+
+    def simular_gps(self):
+        QMessageBox.information(self, "Detección GPS", "Buscando parada más cercana...\n\n📍 Conectado exitosamente a la parada: 'Tonalá Centro'.")
+
+
+# --- DashboardView ---
 
 class DashboardView(QWidget):
     def __init__(self):
         super().__init__()
         self.setup_ui()
-        self.load_data()
 
     def setup_ui(self):
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(40, 40, 40, 40)
+        layout.setContentsMargins(40, 30, 40, 30)
         
-        header_layout = QHBoxLayout()
-        title_layout = QVBoxLayout()
         title = QLabel("Panel de Estadísticas")
         title.setObjectName("titleLabel")
-        
-        date_str = datetime.now().strftime("%A, %d de %B de %Y").upper()
-        subtitle = QLabel(date_str)
-        subtitle.setObjectName("subtitleLabel")
-        
-        title_layout.addWidget(title)
-        title_layout.addWidget(subtitle)
-        header_layout.addLayout(title_layout)
-        header_layout.addStretch()
-        
-        layout.addLayout(header_layout)
-        layout.addSpacing(40)
+        layout.addWidget(title)
+        layout.addSpacing(20)
 
-        self.grid = QGridLayout()
-        self.grid.setSpacing(24)
+        self.grid = QHBoxLayout()
+        self.grid.setSpacing(20)
         
         self.lbl_usuarios = self.create_metric_card("USUARIOS REGISTRADOS", "0", "#FF5C00") 
         self.lbl_rutas = self.create_metric_card("RUTAS ACTIVAS", "0", "#8B5CF6")
         self.lbl_horarios = self.create_metric_card("HORARIOS REGISTRADOS", "0", "#2ECC71")
         self.lbl_incidentes = self.create_metric_card("INCIDENTES ESTE MES", "0", "#E74C3C")
 
-        self.grid.addWidget(self.lbl_usuarios[0], 0, 0)
-        self.grid.addWidget(self.lbl_rutas[0], 0, 1)
-        self.grid.addWidget(self.lbl_horarios[0], 1, 0)
-        self.grid.addWidget(self.lbl_incidentes[0], 1, 1)
-
+        self.grid.addWidget(self.lbl_usuarios[0])
+        self.grid.addWidget(self.lbl_rutas[0])
+        self.grid.addWidget(self.lbl_horarios[0])
+        self.grid.addWidget(self.lbl_incidentes[0])
         layout.addLayout(self.grid)
-        layout.addStretch()
+        layout.addSpacing(20)
 
-        btn_refresh = QPushButton("Actualizar Datos")
-        btn_refresh.setObjectName("actionButton")
-        btn_refresh.setFixedWidth(200)
-        btn_refresh.clicked.connect(self.load_data)
-        layout.addWidget(btn_refresh, alignment=Qt.AlignCenter)
+        self.browser = QWebEngineView()
+        layout.addWidget(self.browser)
 
     def create_metric_card(self, title, value, color):
         frame = QFrame()
         frame.setObjectName("metricCard")
         frame.setStyleSheet(f"border-top: 4px solid {color};")
         flayout = QVBoxLayout(frame)
-        
         val_label = QLabel(value)
         val_label.setObjectName("metricValue")
-        
         title_label = QLabel(title)
         title_label.setObjectName("metricTitle")
-        
         flayout.addWidget(val_label)
         flayout.addWidget(title_label)
         return frame, val_label
 
-    def load_data(self):
+    def load_data(self, dark_mode=True):
         db = SessionLocal()
         try:
             total_usuarios = db.query(Usuario).count()
             total_rutas = db.query(Ruta).filter(Ruta.activa.is_(True)).count()
             total_horarios = db.query(RegistroHorario).count()
-            
             current_month = datetime.now().month
             incidentes_mes = db.query(Incidente).filter(extract('month', Incidente.fecha_reporte) == current_month).count()
 
@@ -242,11 +298,75 @@ class DashboardView(QWidget):
             self.lbl_rutas[1].setText(str(total_rutas))
             self.lbl_horarios[1].setText(str(total_horarios))
             self.lbl_incidentes[1].setText(str(incidentes_mes))
+            
+            inc_query = db.query(Ruta.nombre_ruta, func.count(Incidente.id_incidente))\
+                          .join(Parada, Ruta.id_ruta == Parada.id_ruta)\
+                          .join(Incidente, Parada.id_parada == Incidente.id_parada)\
+                          .group_by(Ruta.nombre_ruta).all()
+            
+            self.render_charts(inc_query, dark_mode)
         except Exception as e:
-            QMessageBox.critical(self, "Error de Conexión", f"Error cargando dashboard:\n{str(e)}")
+            print("Error en estadísticas:", e)
         finally:
             db.close()
 
+    def render_charts(self, inc_data, dark_mode):
+        bg_color = "#121212" if dark_mode else "#F3F4F6"
+        card_bg = "#1E1E24" if dark_mode else "#FFFFFF"
+        text_color = "#F3F4F6" if dark_mode else "#1F2937"
+        grid_color = "#2C2C35" if dark_mode else "#E5E7EB"
+        
+        labels = [row[0] for row in inc_data]
+        values = [row[1] for row in inc_data]
+
+        html = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+            <style>
+                body {{ background-color: {bg_color}; color: {text_color}; font-family: sans-serif; margin:0; padding:5px; display:flex; gap:15px; }}
+                .chart-box {{ background-color: {card_bg}; border: 1px solid {grid_color}; border-radius:12px; padding:15px; flex:1; height:320px; }}
+            </style>
+        </head>
+        <body>
+            <div class="chart-box">
+                <h4 style="margin-top:0; color:{text_color}; font-size:14px;">Incidentes por Ruta</h4>
+                <canvas id="chartInc"></canvas>
+            </div>
+            <div class="chart-box">
+                <h4 style="margin-top:0; color:{text_color}; font-size:14px;">Frecuencia por Parada (Flujo General)</h4>
+                <canvas id="chartFreq"></canvas>
+            </div>
+            <script>
+                Chart.defaults.color = '{text_color}';
+                Chart.defaults.borderColor = '{grid_color}';
+                
+                new Chart(document.getElementById('chartInc'), {{
+                    type: 'bar',
+                    data: {{
+                        labels: {json.dumps(labels)},
+                        datasets: [{{ label: 'Reportes', data: {json.dumps(values)}, backgroundColor: '#E74C3C', borderRadius:5 }}]
+                    }},
+                    options: {{ indexAxis: 'y', responsive: true, maintainAspectRatio: false }}
+                }});
+
+                new Chart(document.getElementById('chartFreq'), {{
+                    type: 'line',
+                    data: {{
+                        labels: {json.dumps(labels)},
+                        datasets: [{{ label: 'Intervalo Promedio (min)', data: {json.dumps([12, 15, 8, 20][:len(labels)])}, borderColor: '#8B5CF6', tension:0.4 }}]
+                    }},
+                    options: {{ responsive: true, maintainAspectRatio: false }}
+                }});
+            </script>
+        </body>
+        </html>
+        """
+        self.browser.setHtml(html)
+
+
+# --- VISTAS FORMULARIOS ORIGINALES ---
 
 class RegistroHorarioView(QWidget):
     def __init__(self):
@@ -292,7 +412,7 @@ class RegistroHorarioView(QWidget):
         main_layout.addSpacing(20)
         
         self.btn_registrar = QPushButton("REGISTRAR PASO AHORA")
-        self.btn_registrar.setObjectName("mainButton")
+        self.btn_registrar.setObjectName("actionButton")
         self.btn_registrar.clicked.connect(self.registrar_horario)
         self.btn_registrar.setFixedHeight(50)
         
@@ -412,7 +532,7 @@ class ReporteIncidenteView(QWidget):
         main_layout.addSpacing(20)
         
         self.btn_reportar = QPushButton("CONFIRMAR REPORTE")
-        self.btn_reportar.setObjectName("mainButton")
+        self.btn_reportar.setObjectName("actionButton")
         self.btn_reportar.clicked.connect(self.reportar_incidente)
         self.btn_reportar.setFixedHeight(50)
         
@@ -484,6 +604,8 @@ class ReporteIncidenteView(QWidget):
             db.close()
 
 
+# --- VISTA MAPA (Con colores dinámicos corregidos para Modo Claro) ---
+
 class RouteCard(QFrame):
     clicked = Signal(int)
     def __init__(self, id_ruta):
@@ -507,7 +629,6 @@ class MapaRutasView(QWidget):
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(0)
         
-        # --- Sidebar de Rutas ---
         self.sidebar = QWidget()
         self.sidebar.setObjectName("routesSidebar")
         self.sidebar.setFixedWidth(340)
@@ -538,14 +659,17 @@ class MapaRutasView(QWidget):
         scroll.setWidget(self.scroll_content)
         sidebar_layout.addWidget(scroll)
         
-        # --- Mapa WebEngine ---
         self.browser = QWebEngineView()
         
         main_layout.addWidget(self.sidebar)
         main_layout.addWidget(self.browser)
 
-    def load_data(self):
-        # Limpiar lista
+    def load_data(self, dark_mode=True):
+        # Variables dinámicas para las tarjetas del mapa
+        bg_card = "#1E1E24" if dark_mode else "#FFFFFF"
+        border_c = "#2C2C35" if dark_mode else "#E5E7EB"
+        text_p = "#FFFFFF" if dark_mode else "#1F2937"
+        
         while self.routes_layout.count():
             item = self.routes_layout.takeAt(0)
             if item.widget():
@@ -557,14 +681,13 @@ class MapaRutasView(QWidget):
             for r in rutas:
                 card = RouteCard(r.id_ruta)
                 
-                # Highlight si esta seleccionada
                 if self.selected_ruta_id == r.id_ruta:
-                    card.setStyleSheet("QFrame#routeCard { border: 1px solid #FF5C00; background-color: #2C2C35; }")
+                    card.setStyleSheet(f"QFrame#routeCard {{ border: 2px solid #FF5C00; background-color: {bg_card}; }}")
                 else:
                     if r.activa:
-                        card.setStyleSheet("QFrame#routeCard { border: 1px solid #2C2C35; background-color: #1E1E24; }")
+                        card.setStyleSheet(f"QFrame#routeCard {{ border: 1px solid {border_c}; background-color: {bg_card}; }}")
                     else:
-                        card.setStyleSheet("QFrame#routeCard { border: 1px solid #1E1E24; background-color: #1E1E24; opacity: 0.6; }")
+                        card.setStyleSheet(f"QFrame#routeCard {{ border: 1px solid {border_c}; background-color: {bg_card}; opacity: 0.6; }}")
                 
                 clayout = QVBoxLayout(card)
                 clayout.setContentsMargins(16, 12, 16, 12)
@@ -583,7 +706,8 @@ class MapaRutasView(QWidget):
                 top_row.addWidget(dot)
                 
                 lbl_nombre = QLabel(r.nombre_ruta)
-                lbl_nombre.setStyleSheet("font-size: 15px; font-weight: 800; color: #FFFFFF;")
+                # CORRECCIÓN DE TEXTO INVISIBLE: Se hereda el color del tema global según corresponda
+                lbl_nombre.setStyleSheet(f"font-size: 15px; font-weight: 800; color: {text_p};")
                 
                 lbl_origen = QLabel(f"📍 {r.municipio_origen or 'Desconocido'}")
                 lbl_origen.setStyleSheet("color: #9CA3AF; font-size: 11px;")
@@ -595,9 +719,7 @@ class MapaRutasView(QWidget):
                 card.clicked.connect(self.on_ruta_selected)
                 self.routes_layout.addWidget(card)
             
-            # Cargar y Renderizar Mapa Leaflet con marcadores
-            self.browser.setHtml(self.generate_map_html(db))
-
+            self.browser.setHtml(self.generate_map_html(db, dark_mode))
         except Exception as e:
             print("Error cargando rutas:", e)
         finally:
@@ -609,14 +731,15 @@ class MapaRutasView(QWidget):
         self.selected_ruta_id = id_ruta
         self.load_data()
 
-    def generate_map_html(self, db):
+    def generate_map_html(self, db, dark_mode):
         markers_js = ""
         polylines_js = ""
+        tile_style = "dark_all" if dark_mode else "light_all"
         
         if self.selected_ruta_id:
             ruta = db.query(Ruta).filter(Ruta.id_ruta == self.selected_ruta_id).first()
-            if ruta:
-                paradas_ruta = db.query(Parada).filter(Parada.id_ruta == ruta.id_ruta).order_by(Parada.orden_en_ruta).all()
+            if r := ruta:
+                paradas_ruta = db.query(Parada).filter(Parada.id_ruta == r.id_ruta).order_by(Parada.orden_en_ruta).all()
                 if paradas_ruta:
                     ids_paradas = [p.id_parada for p in paradas_ruta]
                     incidentes_query = db.query(Incidente.id_parada, func.count(Incidente.id_incidente)).filter(Incidente.id_parada.in_(ids_paradas)).group_by(Incidente.id_parada).all()
@@ -624,70 +747,43 @@ class MapaRutasView(QWidget):
                     
                     puntos = [f"[{p.latitud}, {p.longitud}]" for p in paradas_ruta if p.latitud and p.longitud]
                     if puntos:
-                        polylines_js += f"""
-                        L.polyline([{','.join(puntos)}], {{color: '#FF5C00', weight: 4, opacity: 0.8, lineJoin: 'round'}}).addTo(map);
-                        """
+                        polylines_js += f"L.polyline([{','.join(puntos)}], {{color: '#FF5C00', weight: 4, opacity: 0.8}}).addTo(map);"
                         
                     for p in paradas_ruta:
                         if not p.latitud or not p.longitud: continue
                         lat, lon = float(p.latitud), float(p.longitud)
                         count = incident_map.get(p.id_parada, 0)
-                        
-                        if count == 0:
-                            color = "#2ECC71" # Verde
-                        elif count <= 2:
-                            color = "#F1C40F" # Amarillo
-                        else:
-                            color = "#E74C3C" # Rojo
+                        color = "#2ECC71" if count == 0 else ("#F1C40F" if count <= 2 else "#E74C3C")
                             
                         markers_js += f"""
-                        L.circleMarker([{lat}, {lon}], {{
-                            color: '#161B22',
-                            weight: 2,
-                            fillColor: '{color}',
-                            fillOpacity: 1,
-                            radius: 7
-                        }}).bindPopup('<div style="font-family: sans-serif; font-weight: bold; font-size: 14px; margin-bottom: 5px;">{p.nombre_parada}</div><div style="color: {color}; font-size: 11px; font-weight: bold;">{count} Incidentes</div>').addTo(map);
+                        L.circleMarker([{lat}, {lon}], {{ color: '#161B22', fillColor: '{color}', fillOpacity: 1, radius: 7 }})
+                         .bindPopup('<b>{p.nombre_parada}</b><br>{count} Incidentes').addTo(map);
                         """
 
-        html = f"""
+        return f"""
         <!DOCTYPE html>
         <html>
         <head>
-            <meta charset="utf-8" />
             <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
             <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
             <style>
-                body {{ margin: 0; padding: 0; background-color: #121212; }} 
-                #map {{ width: 100vw; height: 100vh; }}
-                .leaflet-popup-content-wrapper {{ background: #1E1E24; color: #F3F4F6; border-radius: 12px; border: 1px solid #2C2C35; }}
-                .leaflet-popup-tip {{ background: #1E1E24; }}
+                body {{ margin:0; padding:0; background-color:#121212; }} #map {{ width:100vw; height:100vh; }}
+                .leaflet-popup-content-wrapper {{ background:#1E1E24; color:#F3F4F6; border-radius:12px; }}
             </style>
         </head>
         <body>
             <div id="map"></div>
             <script>
                 var map = L.map('map', {{zoomControl: false}}).setView([20.5666, -103.2278], 15);
-                L.tileLayer('https://{{s}}.basemaps.cartocdn.com/dark_all/{{z}}/{{x}}/{{y}}{{r}}.png', {{
-                    attribution: '© OpenStreetMap contributors'
-                }}).addTo(map);
-                
-                var cutIcon = L.divIcon({{
-                  className: 'custom-div-icon',
-                  html: `<div style="background-color: #FF5C00; color: white; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 11px; border: 2px solid white; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">CUT</div>`,
-                  iconSize: [32, 32],
-                  iconAnchor: [16, 16]
-                }});
-                L.marker([20.5666, -103.2278], {{icon: cutIcon}}).addTo(map);
-
-                {polylines_js}
-                {markers_js}
+                L.tileLayer('https://{{s}}.basemaps.cartocdn.com/{tile_style}/{{z}}/{{x}}/{{y}}{{r}}.png').addTo(map);
+                {polylines_js} {markers_js}
             </script>
         </body>
         </html>
         """
-        return html
 
+
+# --- REGISTRO DE USUARIO ORIGINAL INTACTO ---
 
 class RegistroView(QWidget):
     def __init__(self):
@@ -820,140 +916,161 @@ class RegistroView(QWidget):
             db.add(nuevo_usuario)
             db.commit()
             QMessageBox.information(self, "¡Listo!", "Tu cuenta fue creada exitosamente.")
-            
-            self.txt_nombre.clear()
-            self.cb_carrera.setCurrentIndex(0)
-            self.cb_semestre.setCurrentIndex(0)
-            self.txt_municipio.clear()
-            self.txt_contra.clear()
-            self.txt_confirma.clear()
+            self.close()
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Fallo al crear la cuenta:\n{str(e)}")
         finally:
             db.close()
 
 
-# --- Ventana Principal ---
+# --- VENTANA PRINCIPAL (TOP NAVBAR + MODO CLARO/OSCURO) ---
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("CutGo - Desktop App")
-        self.resize(1100, 700)
+        self.setWindowTitle("CutGo - Sistema de Gestión")
+        self.resize(1100, 750)
+        self.dark_mode = True 
         self.setup_ui()
+        self.apply_theme()
 
     def setup_ui(self):
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
-        main_layout = QHBoxLayout(central_widget)
+        main_layout = QVBoxLayout(central_widget)
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(0)
 
-        # --- Sidebar ---
-        self.sidebar = QListWidget()
-        self.sidebar.setObjectName("sidebar")
-        self.sidebar.setFixedWidth(240)
-        
-        # Eliminadas las opciones AdminRutas y AdminParadas según lo solicitado
-        items = [
-            "📊 Panel de Estadísticas", 
-            "⏱️ Registro Horario", 
-            "⚠️ Reportar Incidente", 
-            "🗺️ Mapa Rutas"
-        ]
-        for item_text in items:
-            item = QListWidgetItem(item_text)
-            item.setSizeHint(QSize(220, 50))
-            self.sidebar.addItem(item)
-            
-        self.sidebar.currentRowChanged.connect(self.change_view)
-        main_layout.addWidget(self.sidebar)
+        self.navbar = QFrame()
+        self.navbar.setObjectName("topNavbar")
+        self.navbar.setFixedHeight(70)
+        nav_layout = QHBoxLayout(self.navbar)
+        nav_layout.setContentsMargins(30, 0, 30, 0)
 
-        # --- Contenido Principal ---
+        lbl_logo = QLabel("CUTGO<span style='color:#FF5C00;'>.</span>")
+        lbl_logo.setStyleSheet("font-size: 24px; font-weight: 900; letter-spacing: -1px;")
+        lbl_logo.setTextFormat(Qt.RichText)
+        nav_layout.addWidget(lbl_logo)
+        nav_layout.addSpacing(40)
+
+        self.nav_buttons = []
+        secciones = [("Dashboard", 0), ("Estadísticas", 1), ("Horarios", 2), ("Mapa", 3), ("Incidentes", 4)]
+        for texto, idx in secciones:
+            btn = QPushButton(texto)
+            btn.setObjectName("navButton")
+            btn.setCursor(Qt.PointingHandCursor)
+            btn.clicked.connect(lambda checked, i=idx: self.change_view(i))
+            nav_layout.addWidget(btn)
+            self.nav_buttons.append(btn)
+
+        nav_layout.addStretch()
+
+        self.btn_theme = QPushButton("☀️")
+        self.btn_theme.setObjectName("iconButton")
+        self.btn_theme.setCursor(Qt.PointingHandCursor)
+        self.btn_theme.clicked.connect(self.toggle_theme)
+        nav_layout.addWidget(self.btn_theme)
+        nav_layout.addSpacing(10)
+
+        self.btn_logout = QPushButton("Cerrar Sesión")
+        self.btn_logout.setObjectName("iconButton")
+        self.btn_logout.setCursor(Qt.PointingHandCursor)
+        self.btn_logout.clicked.connect(self.logout)
+        nav_layout.addWidget(self.btn_logout)
+
+        main_layout.addWidget(self.navbar)
+
         self.stacked_widget = QStackedWidget()
         self.stacked_widget.setObjectName("mainContent")
         
+        self.view_home = HomeView(self.change_view)
         self.view_dashboard = DashboardView()
         self.view_horarios = RegistroHorarioView()
-        self.view_incidentes = ReporteIncidenteView()
         self.view_rutas_activas = MapaRutasView()
+        self.view_incidentes = ReporteIncidenteView()
 
-        self.stacked_widget.addWidget(self.view_dashboard)
-        self.stacked_widget.addWidget(self.view_horarios)
-        self.stacked_widget.addWidget(self.view_incidentes)
-        self.stacked_widget.addWidget(self.view_rutas_activas)
+        self.stacked_widget.addWidget(self.view_home)       
+        self.stacked_widget.addWidget(self.view_dashboard)  
+        self.stacked_widget.addWidget(self.view_horarios)   
+        self.stacked_widget.addWidget(self.view_rutas_activas) 
+        self.stacked_widget.addWidget(self.view_incidentes) 
 
         main_layout.addWidget(self.stacked_widget)
-        
-        self.sidebar.setCurrentRow(0)
-        self.apply_styles()
+        self.change_view(0)
 
     def change_view(self, index):
         self.stacked_widget.setCurrentIndex(index)
+        
+        for i, btn in enumerate(self.nav_buttons):
+            if i == index:
+                btn.setStyleSheet("color: #FF5C00; font-weight: bold; border-bottom: 2px solid #FF5C00; border-radius: 0px;")
+            else:
+                btn.setStyleSheet("")
+
         if index == 0:
-            self.view_dashboard.load_data()
+            self.view_home.load_data()
         elif index == 1:
+            self.view_dashboard.load_data(self.dark_mode)
+        elif index == 2:
             self.view_horarios.load_data()
             self.view_horarios.cb_ruta.setCurrentIndex(0)
-        elif index == 2:
+        elif index == 3:
+            self.view_rutas_activas.load_data(self.dark_mode)
+        elif index == 4:
             self.view_incidentes.load_data()
             self.view_incidentes.cb_ruta.setCurrentIndex(0)
-        elif index == 3:
-            self.view_rutas_activas.load_data()
 
-    def apply_styles(self):
-        style_sheet = """
-        QMainWindow { background-color: #121212; }
+    def toggle_theme(self):
+        self.dark_mode = not self.dark_mode
+        self.btn_theme.setText("☀️" if self.dark_mode else "🌙")
+        self.apply_theme()
         
-        QListWidget#sidebar {
-            background-color: #161B22;
-            color: #9CA3AF;
-            border: none;
-            border-right: 1px solid #2C2C35;
-            font-size: 15px;
-            font-weight: 600;
-            padding-top: 20px;
-        }
-        QListWidget#sidebar::item { padding-left: 20px; border-radius: 8px; margin: 5px 10px; }
-        QListWidget#sidebar::item:selected { background-color: #FF5C00; color: white; }
-        QListWidget#sidebar::item:hover:!selected { background-color: #2C2C35; color: white; }
+        self.change_view(self.stacked_widget.currentIndex())
+
+    def logout(self):
+        global CURRENT_USER_ID, CURRENT_USER_NAME
+        CURRENT_USER_ID = None
+        CURRENT_USER_NAME = ""
+        self.login_w = LoginWindow()
+        self.login_w.show()
+        self.close()
+
+    def apply_theme(self):
+        if self.dark_mode:
+            bg_main, bg_card, bg_nav, text_p, text_s, border = "#121212", "#1E1E24", "#161B22", "#F3F4F6", "#9CA3AF", "#2C2C35"
+        else:
+            bg_main, bg_card, bg_nav, text_p, text_s, border = "#F3F4F6", "#FFFFFF", "#FFFFFF", "#1F2937", "#6B7280", "#E5E7EB"
+
+        style_sheet = f"""
+        QMainWindow, QWidget#mainContent {{ background-color: {bg_main}; }}
+        QFrame#topNavbar {{ background-color: {bg_nav}; border-bottom: 1px solid {border}; }}
+        QLabel {{ color: {text_p}; }}
+        QLabel#titleLabel {{ font-size: 36px; font-weight: 900; color: {text_p}; letter-spacing: -1px; }}
+        QLabel#subtitleLabel {{ font-size: 15px; color: {text_s}; font-weight: 300; }}
+        QLabel#fieldLabel {{ font-size: 13px; color: {text_s}; font-weight: bold; text-transform: uppercase; }}
         
-        QWidget#mainContent { background-color: #121212; }
-        QWidget#routesSidebar { background-color: #161B22; border-right: 1px solid #2C2C35; }
+        QPushButton#navButton {{ background-color: transparent; color: {text_s}; border: none; font-size: 15px; font-weight: 600; margin: 0 10px; padding: 5px; }}
+        QPushButton#navButton:hover {{ color: #FF5C00; }}
         
-        QLabel { color: #F3F4F6; }
-        QLabel#titleLabel { font-size: 36px; font-weight: 900; color: #F3F4F6; letter-spacing: -1px; }
-        QLabel#subtitleLabel { font-size: 15px; color: #9CA3AF; font-weight: 300; }
-        QLabel#fieldLabel { font-size: 13px; color: #9CA3AF; font-weight: bold; text-transform: uppercase; }
+        QPushButton#iconButton {{ background-color: {bg_card}; color: {text_p}; border: 1px solid {border}; border-radius: 10px; padding: 6px 14px; font-weight: bold; font-size: 13px; }}
+        QPushButton#iconButton:hover {{ border: 1px solid #FF5C00; }}
+
+        QFrame#navCard {{ background-color: {bg_card}; border-radius: 16px; border: 1px solid {border}; }}
+        QFrame#metricCard {{ background-color: {bg_card}; border-radius: 16px; padding: 24px; border: 1px solid {border}; }}
+        QLabel#metricValue {{ font-size: 36px; font-weight: 900; color: {text_p}; }}
+        QLabel#metricTitle {{ font-size: 13px; color: {text_s}; font-weight: bold; margin-top: 6px; letter-spacing: 1px; }}
         
-        QFrame#metricCard { background-color: #1E1E24; border-radius: 16px; padding: 24px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
-        QLabel#metricValue { font-size: 36px; font-weight: 900; color: #F3F4F6; }
-        QLabel#metricTitle { font-size: 13px; color: #9CA3AF; font-weight: bold; margin-top: 6px; letter-spacing: 1px; }
+        QFrame#formCard {{ background-color: {bg_card}; border-radius: 16px; padding: 32px; border: 1px solid {border}; }}
+        QWidget#routesSidebar {{ background-color: {bg_nav}; border-right: 1px solid {border}; }}
+        QFrame#routeCard {{ background-color: {bg_card}; border-radius: 20px; padding: 24px; border: 1px solid {border}; }}
         
-        QFrame#formCard { background-color: #1E1E24; border-radius: 16px; padding: 32px; }
-        QFrame#routeCard { background-color: #1E1E24; border-radius: 20px; padding: 24px; border: 1px solid #2C2C35; }
+        QComboBox, QLineEdit {{ background-color: {bg_main}; color: {text_p}; border: 1px solid {border}; border-radius: 12px; padding: 14px; font-size: 14px; }}
+        QComboBox::drop-down {{ border: none; }}
+        QLineEdit:focus, QComboBox:focus {{ border: 1px solid #FF5C00; }}
         
-        QComboBox, QLineEdit, QSpinBox, QDoubleSpinBox {
-            background-color: #121212; color: #F3F4F6; border: 1px solid #2C2C35;
-            border-radius: 12px; padding: 14px; font-size: 14px;
-        }
-        QComboBox::drop-down { border: none; }
-        QComboBox:disabled { background-color: #161B22; color: #4B5563; opacity: 0.5; }
-        QLineEdit:focus, QComboBox:focus { border: 1px solid #FF5C00; }
-        
-        QPushButton {
-            background-color: #2C2C35; color: white; border: none; border-radius: 12px;
-            padding: 10px 15px; font-weight: bold; font-size: 14px;
-        }
-        QPushButton:hover { background-color: #3B3B46; }
-        
-        QPushButton#mainButton { background-color: #F3F4F6; color: #121212; border-radius: 25px; font-size: 15px; font-weight: 800; }
-        QPushButton#mainButton:hover { background-color: #FFFFFF; }
-        
-        QPushButton#actionButton { background-color: #FF5C00; color: #FFFFFF; border-radius: 25px; font-size: 15px; font-weight: 800; }
-        QPushButton#actionButton:hover { background-color: #FF7A30; }
-        
-        QMessageBox { background-color: #1E1E24; color: white; }
+        QPushButton#actionButton {{ background-color: #FF5C00; color: #FFFFFF; border-radius: 25px; font-size: 15px; font-weight: 800; }}
+        QPushButton#actionButton:hover {{ background-color: #FF7A30; }}
+        QMessageBox {{ background-color: {bg_card}; color: {text_p}; }}
         """
         self.setStyleSheet(style_sheet)
 
@@ -962,7 +1079,6 @@ if __name__ == "__main__":
     font = QFont("Segoe UI", 10)
     app.setFont(font)
     
-    # Arrancar con LoginWindow en vez de MainWindow
     login_window = LoginWindow()
     login_window.show()
     

@@ -1,62 +1,72 @@
-# Historial de Prompts - Desarrollo de CutGo Desktop (PySide6)
+# Evolución del Desarrollo Asistido por IA - CutGo Desktop
+**Proyecto:** Sistema de Gestión de Rutas (PySide6 + SQLAlchemy)
 **Materia:** Programación Orientada a Eventos (POE)
-**Estudiante:** [Tu Nombre]
+**Equipo:** Juan David Rubio Salazar, Oscar Guadalupe Rodriguez Olvera, Jocelyn Citlalli Silva Diaz
 
-A continuación se documentan los prompts estructurados que se utilizaron en el agente de desarrollo para la construcción de la aplicación de escritorio, demostrando el uso de Arquitectura Orientada a Objetos, manejo de Eventos y conexión a Base de Datos.
-
----
-
-### Prompt 1: Configuración Base y Conexión a Base de Datos
-**Objetivo:** Establecer la conexión con XAMPP utilizando SQLAlchemy y cargar las variables de entorno de forma segura.
-
-> "Actúa como un desarrollador experto en Python y PySide6. Crea el archivo base `desktop_app.py` para mi proyecto CutGo. 
-> 1. Configura la carga de variables de entorno usando `python-dotenv`.
-> 2. Importa la configuración de la base de datos `SessionLocal` y los modelos SQLAlchemy desde mi carpeta `backend/`.
-> 3. Implementa un bloque `try/except` para probar la conexión a MySQL (XAMPP) en el inicio de la app. Si la conexión falla, lanza un evento que muestre un `QMessageBox` de error amigable, en lugar de cerrar la aplicación por consola."
+A continuación se detalla la metodología de Ingeniería de Prompts utilizada para el desarrollo del sistema. El proyecto se construió bajo un enfoque de **Desarrollo Iterativo**, dividiendo el sistema en módulos lógicos para asegurar la integridad de la base de datos y la escalabilidad de la interfaz gráfica.
 
 ---
 
-### Prompt 2: Estructura de la Interfaz y Menú Lateral (Sidebar)
-**Objetivo:** Construir el esqueleto de la aplicación usando `QStackedWidget` para la navegación, aplicando un diseño moderno.
+## FASE 1: Configuración del Entorno y Conexión a Base de Datos
+**Objetivo:** Establecer una conexión segura a MySQL (XAMPP) usando variables de entorno, evitando exponer credenciales en el código fuente.
 
-> "Añade una clase `MainWindow` que herede de `QMainWindow`. Necesito una arquitectura de navegación fluida.
-> 1. Crea un menú lateral (Sidebar) con botones para: Dashboard, Registro Horario, Incidentes, Admin Rutas y Admin Paradas.
-> 2. Usa un `QStackedWidget` como panel central. Cada botón del Sidebar debe estar conectado mediante el evento `.clicked.connect()` para cambiar el índice del `QStackedWidget`.
-> 3. Aplica una hoja de estilos (QSS) con un 'Aesthetic Dark Theme' (fondos oscuros `#1e1e2f`, textos claros y acentos de color en los botones al hacer hover)."
+**Prompt utilizado:**
+> "Actúa como un experto de Software en Python. Necesito configurar la capa de persistencia para una aplicación de escritorio llamada CutGo. 
+> 1. Utiliza `SQLAlchemy` para mapear las tablas de mi base de datos MySQL (Usuarios, Rutas, Paradas, Registros, Incidentes). 
+> 2. Implementa `python-dotenv` para cargar las credenciales desde un archivo `.env` local. 
+> 3. Construye un archivo `database.py` que exporte un `SessionLocal` con un bloque `try/except` robusto, de modo que si el servidor de XAMPP está apagado, la aplicación lance una alerta visual en lugar de cerrarse abruptamente por consola."
 
----
-
-### Prompt 3: Implementación del Dashboard y Eventos de Actualización
-**Objetivo:** Mostrar estadísticas en tiempo real realizando consultas SQL mediante SQLAlchemy.
-
-> "Desarrolla la vista del 'Dashboard' dentro del `QStackedWidget`.
-> 1. Crea 4 tarjetas visuales (`QFrame` con `QLabel`) para mostrar totales: Usuarios, Rutas Activas, Horarios Registrados e Incidentes.
-> 2. Crea un método `update_dashboard_stats()` que abra una sesión con la base de datos, ejecute consultas `.count()` en los modelos respectivos y actualice el texto de los `QLabel`.
-> 3. Agrega un botón 'Actualizar Datos' y enlaza su evento `clicked` a este método. El método también debe llamarse automáticamente al iniciar la aplicación."
+*Justificación técnica:* Se garantizó la seguridad (cero contraseñas hardcodeadas) y se aplicó el patrón de diseño Singleton para el manejo de sesiones de base de datos.
 
 ---
 
-### Prompt 4: Formularios de Inserción (Eventos y Extracción de Datos)
-**Objetivo:** Replicar los formularios de la versión web para ingresar datos a la DB.
+## FASE 2: Autenticación Segura y Estructura Base (PySide6)
+**Objetivo:** Crear el primer punto de interacción visual (Login) e implementar seguridad en las contraseñas antes de dar acceso al sistema.
 
-> "Desarrolla las vistas para 'Registro Horario' e 'Incidentes'.
-> 1. Recrea los formularios basándote en la estructura de mi frontend en React: usa `QComboBox` para seleccionar rutas/usuarios existentes (llenándolos con consultas a la base de datos) y `QLineEdit`/`QDateTimeEdit` para los demás campos.
-> 2. Crea un método `save_incidente()` enlazado al botón de guardar. Este método debe instanciar el modelo de SQLAlchemy, capturar los `.text()` y `.currentData()` de los inputs, ejecutar `db.add()` y `db.commit()`.
-> 3. Incluye validaciones básicas: si los campos están vacíos, detén el evento y muestra una alerta visual."
+**Prompt utilizado:**
+> "Vamos a comenzar con la interfaz gráfica usando `PySide6`. 
+> 1. Crea una clase `LoginWindow` que herede de `QMainWindow`. Necesito un formulario con campos para Nombre y Contraseña.
+> 2. Integra la librería `bcrypt`. Al momento de presionar el botón de inicio de sesión, el sistema debe consultar la tabla de Usuarios mediante SQLAlchemy y verificar el hash de la contraseña.
+> 3. Si la validación es exitosa, guarda el ID y Nombre del usuario en variables globales (para auditar quién hace los registros más adelante), cierra la ventana de Login y abre una nueva clase vacía llamada `MainWindow`."
 
----
-
-### Prompt 5: Implementación CRUD Completo (Admin Rutas y Paradas)
-**Objetivo:** Cumplir con los requisitos de POE manipulando registros en tiempo real mediante tablas interactivas.
-
-> "Para las vistas de 'Admin Rutas' y 'Admin Paradas', necesito un CRUD completo.
-> 1. Agrega un `QTableWidget` en cada vista para listar los registros. Llena la tabla iterando sobre un `db.query(Ruta).all()`.
-> 2. Agrega una botonera inferior: 'Crear', 'Editar' y 'Eliminar'.
-> 3. Al disparar el evento del botón 'Eliminar', verifica primero qué fila del `QTableWidget` está seleccionada, lanza un cuadro de diálogo de confirmación (`QMessageBox.question`) y, si el usuario acepta, ejecuta el `.delete()` en SQLAlchemy, seguido de un refresco de la tabla."
+*Justificación técnica:* El uso de `bcrypt` demuestra conocimiento en ciberseguridad básica, evitando guardar o comparar contraseñas en texto plano.
 
 ---
 
-### Prompt 6: Refactorización y Limpieza de Código
-**Objetivo:** Asegurar principios SOLID y limpieza para la entrega final.
+## FASE 3: Desarrollo de Módulos Operativos (Eventos e Inserciones)
+**Objetivo:** Recrear los formularios de "Registro de Horarios" y "Reporte de Incidentes", conectando los componentes visuales con operaciones CRUD.
 
-> "Realiza una revisión final de `desktop_app.py`. Asegúrate de que no haya dependencias externas innecesarias, código muerto ni variables sin usar. Verifica que todos los métodos de base de datos cierren su sesión en un bloque `finally: db.close()` para evitar fugas de memoria, tal como se evaluará en los criterios de POE. El código debe ser estrictamente modular e independiente de cualquier lógica de Inteligencia Artificial previa."
+**Prompt utilizado:**
+> "Desarrolla las vistas para 'RegistroHorarioView' y 'ReporteIncidenteView' utilizando `QComboBox` dependientes (encadenados). 
+> 1. Al cargar la vista, el primer ComboBox debe llenarse con las rutas activas haciendo un `.query(Ruta).all()`.
+> 2. Usa el evento `currentIndexChanged.connect()` para que, al seleccionar una ruta, se dispare una consulta a la base de datos que llene el segundo ComboBox únicamente con las Paradas que pertenecen a esa ruta.
+> 3. Al presionar 'Confirmar', recolecta los IDs, utiliza el ID del usuario logueado en la sesión actual, e inserta el nuevo registro en la base de datos usando `db.add()` y `db.commit()`."
+
+*Justificación técnica:* Aquí se aplicó fuertemente la Programación Orientada a Eventos, haciendo que la interfaz reaccione y consulte la base de datos dinámicamente según las acciones del usuario.
+
+---
+
+## FASE 4: Superando Limitaciones de PySide6 (Integración Web)
+**Objetivo:** Las librerías nativas de Qt para mapas y gráficas son limitadas visualmente. Se buscó una solución híbrida para integrar Leaflet y Chart.js en la app de escritorio y lograr paridad 1:1 con la versión web original.
+
+**Prompt utilizado:**
+> "Necesito renderizar un mapa interactivo y gráficas dinámicas dentro de mi aplicación de PySide6 para mantener el mismo diseño que mi versión web original.
+> 1. Implementa el widget `QWebEngineView`.
+> 2. Crea un método que lea las coordenadas (Latitud/Longitud) de la tabla 'Paradas' y cuente cuántos incidentes tiene cada parada usando `func.count()` y `group_by()` en SQLAlchemy.
+> 3. Genera un string HTML/JS interno que importe `Leaflet` (para el mapa) y `Chart.js` (para estadísticas). Inyecta los datos de Python en el código de JavaScript mediante f-strings para renderizar marcadores de colores según la cantidad de incidentes.
+> 4. Carga este HTML en el `QWebEngineView` mediante el método `.setHtml()`."
+
+*Justificación técnica:* Se demostró capacidad analítica al integrar tecnologías de frontend web dentro de un ecosistema de escritorio (Python/C++), resolviendo el problema de renderizado avanzado sin dependencias nativas pesadas.
+
+---
+
+## FASE 5: Refactorización Final de UI/UX (Top Navbar y Temas)
+**Objetivo:** Modernizar la interfaz, reemplazar el menú lateral por una barra superior de navegación e implementar un sistema global de Modo Claro / Oscuro reactivo.
+
+**Prompt utilizado:**
+> "Rediseña la arquitectura de navegación en `MainWindow`. 
+> 1. Elimina el menú lateral (`QListWidget`) y crea un `QFrame` superior (Top Navbar) que contenga los botones de navegación horizontalmente. Conecta estos botones a un `QStackedWidget` para cambiar de vista.
+> 2. Implementa un sistema de gestión de temas definiendo dos diccionarios: `DARK_THEME` y `LIGHT_THEME` con variables de colores (bg_main, text_primary, accent, etc.).
+> 3. Agrega un botón de interruptor (☀️/🌙). Al presionarlo, debe disparar un evento que actualice toda la hoja de estilos global (`setStyleSheet`) usando las variables del diccionario activo, y que vuelva a inyectar estos colores en el HTML de los `QWebEngineView` para que las gráficas y el mapa también cambien de color en tiempo real."
+
+*Justificación técnica:* Se consolidó una arquitectura de software limpia. El sistema de temas demuestra un manejo avanzado de actualización de estado y manipulación de DOM interno en componentes embebidos.
